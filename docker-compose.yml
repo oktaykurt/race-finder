@@ -1,0 +1,65 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx_gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx-ssl:/etc/nginx/ssl
+    depends_on:
+      - race-catalog
+      - race-submission
+      - user-auth
+    networks:
+      - race-finder-network
+
+  race-catalog:
+    build: ./race-catalog
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgres://user:password@postgres:5432/racesdb
+    networks:
+      - race-finder-network
+
+  race-submission:
+    build: ./race-submission
+    container_name: race_submission_service
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgres://user:password@postgres:5432/racesdb
+      - JWT_SECRET=your_jwt_secret
+    networks:
+      - race-finder-network
+
+  user-auth:
+    build: ./user-auth
+    container_name: user_auth_service
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgres://user:password@postgres:5432/racesdb
+      - JWT_SECRET=your_jwt_secret
+    networks:
+      - race-finder-network
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=racesdb
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - race-finder-network
+
+networks:
+  race-finder-network:
+    driver: bridge
